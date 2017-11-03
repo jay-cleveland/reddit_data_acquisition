@@ -21,14 +21,18 @@ def main():
 	post_limit = 10000
 	totalPosts = 0
 
+	#Opens data file for writing
+	dataInfo = open("data_info.txt", "w+")
+	
 	for sub in subs:
 
 		sub_path = "/home/kaislyn/RedditData/subreddits/%s/" % sub	
 		if not os.path.exists(sub_path):
-
+			
 			#Create paths if they don't exist
 			raw_text_path = "/home/kaislyn/RedditData/subreddits/%s/raw_text/" % sub 	#Change directory in this line
 			image_path = "/home/kaislyn/RedditData/subreddits/%s/images/" % sub		#Change directory in this line
+			totalComments = 0
 
 			if not os.path.exists(raw_text_path):
 				os.makedirs(raw_text_path)
@@ -51,13 +55,15 @@ def main():
 
 						
 			for post in posts:
-				#Creates the submission object using the post id		
-				submission = reddit.submission(id=post)
-				
-				#Only works on posts that have an image url associated with them
-				if (".jpg" in submission.url) or (".png" in submission.url) or (".bmp" in submission.url):
+								
 					
-					try:
+				try:
+					#Creates the submission object using the post id		
+					submission = reddit.submission(id=post)			
+
+					#Only works on posts that have an image url associated with them
+					if (".jpg" in submission.url) or (".png" in submission.url) or (".bmp" in submission.url):
+					
 						#Create text filepath
 						text_filepath = os.path.join(raw_text_path, (post + '.txt'))
 						
@@ -72,9 +78,15 @@ def main():
 							#Grabs image from post
 							
 							#**10/17/17** Fixed bug for downloading corrupt images
-							image_filename = os.path.join(image_path, (post + ".jpg"))
-							image_url = submission.url
-							urllib.urlretrieve(image_url, image_filename)
+							
+							if (".jpg" in submission.url):
+								image_filename = os.path.join(image_path, (post + ".jpg"))
+							if (".png" in submission.url):
+								image_filename = os.path.join(image_path, (post + ".png"))
+							if (".bmp" in submission.url):
+								image_filename = os.path.join(image_path, (post + ".bmp"))
+							
+							urllib.urlretrieve(submission.url, image_filename)
 						
 							try:
 
@@ -92,6 +104,9 @@ def main():
 								#Create textfile to write comments to
 								nfile = open(text_filepath, "w+")
 								
+								#Track comment ammounts
+								totalComments += len(comment_queue)
+
 								#**10/17/17** Check comment_queue size to avoid empty txt file bug
 								while comment_queue:
 									comment = comment_queue.pop(0)
@@ -103,10 +118,11 @@ def main():
 								#Displays corrupt image error and deletes corresponding image
 								print("Image %s.jpg corrupt. Removing..." % post)
 								os.remove(image_filename)
-					except:
-						#Throws an error if any issues arise from retrieving submission
-						print("Unable to collect post... continuing")
+				except:
+					#Throws an error if any issues arise from retrieving submission
+					print("Unable to collect post... continuing")
 
+			
 			#Creates a list of txtfiles for each sub
 			txtfiles_filename = "%s_textfiles.txt" % sub
 			txtfiles_filepath = os.path.join(raw_text_path, txtfiles_filename)			
@@ -115,10 +131,16 @@ def main():
 				textfiles.write(txt + "\n")
 			textfiles.close()
 
-		
+			#Write data to file	
+			dataInfo.write("%s\t%s\t%s\n" % (sub, len(txtfiles), (totalComments/len(txtfiles))))
+			
 			#End of program info
 			totalPosts += len(txtfiles)
 
+
+	
+	#Close data_info.txt file
+	dataInfo.close()
 
 	print("Collected data from a total of %s posts." % totalPosts)
 	
