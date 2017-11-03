@@ -4,9 +4,9 @@
 #V2 Changes: Implemented code to retrieve list of all post IDs from pushshift API
 
 
+from __future__ import division
 import praw, urllib, os, string, time, requests
 from PIL import Image
-
 
 def main():
 	#**10/12/2017** implement read in subreddit list (done)
@@ -73,15 +73,12 @@ def main():
 				postsAPI_Data = requests.get(posts_URL)
 				postsJSON = postsAPI_Data.json()
 				posts_Obj_List = postsJSON['data']
-				print('in while after date_created')
 				if len(posts_Obj_List) == 500:
 					for post in posts_Obj_List:
 						posts.append(post['id'])
-					print(len(posts))
 				else:
 					for post in posts_Obj_List:
 						posts.append(post['id'])
-					print(len(posts))
 					break
 						
 			for post in posts:
@@ -161,17 +158,19 @@ def main():
 			textfile_List_File.close()
 
 			#Creates a file containing subreddit data sub_Data_File
-			percentViable = (len(txtfiles)/len(posts)) * 100
+			totalPosts = len(posts)
+			totalHarvested = len(txtfiles)
+			percentYielded = (totalHarvested/totalPosts)*100
 			avgCommentsPerPost = totalCommentsInSubreddit/len(txtfiles)
 			SUB_ELAPSED_TIME = time.time() - SUB_START_TIME
 			m, s = divmod(SUB_ELAPSED_TIME, 60)
-			h, m = divmod(m, 60)
-			
+			h, m = divmod(m, 60)		
+	
 			sub_Data_File.write("Sub Runtime: %dh:%02dm:%02ds\n" % (h, m, s))
 			sub_Data_File.write("Total Comments Collected: %s\n" % totalCommentsInSubreddit)
-			sub_Data_File.write("Average Comments Per Post: %s\n" % avgCommentsPerPost)
+			sub_Data_File.write("Average Comments Per Post: %.2f\n" % avgCommentsPerPost)
 			sub_Data_File.write("Total Number of Posts Harvested: %s\n" % len(txtfiles))
-			sub_Data_File.write("Percentage of Viable Posts: %s \n" % ((len(txtfiles)/len(posts))*100))			
+			sub_Data_File.write("Percent of Viable Posts: %.2f%%" % percentYielded)
 			sub_Data_File.close()
 			
 		#End subreddit block
