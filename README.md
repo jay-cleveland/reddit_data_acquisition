@@ -1,4 +1,4 @@
-THE PURPOSE OF THIS READ ME FILE IS TO INSTRUCT ON HOW TO USE THE INCLUDED SCRIPTS IN THIS DIRECTORY:
+#THE PURPOSE OF THIS READ ME FILE IS TO INSTRUCT ON HOW TO USE THE INCLUDED SCRIPTS IN THIS DIRECTORY:
 
 NOTE: These scripts have been written with the intent of running on a Linux system, they are not compatible with Windows. Additionally, please ensure that the proper amount of storage is available for any data downloaded by the scripts.
 
