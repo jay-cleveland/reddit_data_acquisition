@@ -23,7 +23,7 @@ def main():
 
 	#Create an instance of the PRAW Reddit object
 	reddit = praw.Reddit(user_agent="Data Acquisition (by /u/kaislyn89)",
-			client_id="gRwn8nhDjwyriA", client_secret="GCsKnHzzNFEpF5DZ1cBnnBzA8EI")
+			client_id="1ZJR-h5YqFJg-Q", client_secret="JjoK7f5_JF5th7c1BvpVa3DCFk0")
 
 	
 	#Goes through each subreddit in the subreddit.txt list
@@ -63,35 +63,35 @@ def main():
 			##Iterates through first 500 objects returned from API call
 			for post in posts_Obj_List:
 				posts.append(post['id'])
-			print(len(posts))
 
 			#Sets the API call to pick up at the post made prior to the created_utc of the last post from previous call
 			##iterates to end of subreddit, filters by total number of comments >= 100
-			while(True):
-				date_created = posts_Obj_List[-1]['created_utc']
-				posts_URL = "https://api.pushshift.io/reddit/search/submission/?size=500&subreddit=%s&num_comments=>100&before=%s" % (sub, date_created)
-				postsAPI_Data = requests.get(posts_URL)
-				postsJSON = postsAPI_Data.json()
-				posts_Obj_List = postsJSON['data']
-				if len(posts_Obj_List) == 500:
-					for post in posts_Obj_List:
-						posts.append(post['id'])
-				else:
-					for post in posts_Obj_List:
-						posts.append(post['id'])
-					break
-						
+			if len(posts) == 500:
+				while(True):
+					date_created = posts_Obj_List[-1]['created_utc']
+					posts_URL = "https://api.pushshift.io/reddit/search/submission/?size=500&subreddit=%s&num_comments=>100&before=%s" % (sub, date_created)
+					postsAPI_Data = requests.get(posts_URL)
+					postsJSON = postsAPI_Data.json()
+					posts_Obj_List = postsJSON['data']
+					if len(posts_Obj_List) == 500:
+						for post in posts_Obj_List:
+							posts.append(post['id'])
+					else:
+						for post in posts_Obj_List:
+							posts.append(post['id'])
+						break
+							
+			print(len(posts))
+			
+			if len(posts) == 0:
+				print("%s contained no viable posts, probably too few comments." % sub)
+				break
+
 			for post in posts:
 
 				try:
 					#Creates the submission object using the post id		
 					submission = reddit.submission(id=post)			
-
-					#Collect all comment id's from reddit submission **NEW 11/2**
-					commentsAPI_URL = "https://api.pushshift.io/reddit/submission/comment_ids/%s" % post
-					commentsAPI_Data = requests.get(commentsAPI_URL)
-					commentsJSON = commentsAPI_Data.json()
-					comments_ID_List = commentsJSON['data']
 
 					#Only works on posts that have an image url associated with them
 					if (".jpg" in submission.url) or (".png" in submission.url) or (".bmp" in submission.url):
@@ -99,51 +99,50 @@ def main():
 						#Create text filepath
 						text_filepath = os.path.join(raw_text_path, (post + '.txt'))
 					
-						#Checks the number of comments	
-						if (len(comments_ID_List) >= 50):
-							print("Aquiring post id %s from %s." % (post, sub))	
+						print("Aquiring post id %s from %s." % (post, sub))	
+					
+						#Grabs image from post
 						
-							#Grabs image from post
-							
-							#**10/17/17** Fixed bug for downloading corrupt images
-							
-							if (".jpg" in submission.url):
-								image_filename = os.path.join(image_path, (post + ".jpg"))
-							if (".png" in submission.url):
-								image_filename = os.path.join(image_path, (post + ".png"))
-							if (".bmp" in submission.url):
-								image_filename = os.path.join(image_path, (post + ".bmp"))
-							
-							urllib.urlretrieve(submission.url, image_filename)
+						#**10/17/17** Fixed bug for downloading corrupt images
 						
-							try:
+						if (".jpg" in submission.url):
+							image_filename = os.path.join(image_path, (post + ".jpg"))
+						if (".png" in submission.url):
+							image_filename = os.path.join(image_path, (post + ".png"))
+						if (".bmp" in submission.url):
+							image_filename = os.path.join(image_path, (post + ".bmp"))
+						
+						urllib.urlretrieve(submission.url, image_filename)
+					
+						try:
 
-								#Testing image for corruption
-								##This is not fully reliable yet, still getting some corrupt images
-								im = Image.open(image_filename)
-								
-								#If this throws an error then a text file will not be created and
-								##The image will be removed
-								im.verify()							 
-								
-								#Creates a list of valid text filenames
-								txtfiles.append(post + '.txt')
-						
-								#Create textfile to write comments to
-								comments_File = open(text_filepath, "w+")
-								
-								#Track comment ammounts
-								totalCommentsInSubreddit += len(comments_ID_List)
+							#Testing image for corruption
+							##This is not fully reliable yet, still getting some corrupt images
+							im = Image.open(image_filename)
+							
+							#If this throws an error then a text file will not be created and
+							##The image will be removed
+							im.verify()							 
+							
+							#Creates a list of valid text filenames
+							txtfiles.append(post + '.txt')
+					
+							#Create textfile to write comments to
+							comments_File = open(text_filepath, "w+")
+							
+							#Reverted back to using Reddit API for comment calls
+							submission.comments.replace_more(limit=0)
+							for comment in submission.comments.list():
+								comments_File.write(comment.body.encode('utf-8'))
+								totalCommentsInSubreddit += 1
 
-								#**11/2/17** Collect comments from each comment ID, takes more time but gets ALL comments
-								for comment_ID in comments_ID_List:
-									comments_File.write(reddit.comment(comment_ID).body.encode('utf-8'))
-								comments_File.close()
-								print("Success!")
-							except:
-								#Displays corrupt image error and deletes corresponding image
-								print("Image %s.jpg corrupt. Removing..." % post)
-								os.remove(image_filename)
+							comments_File.close()	
+							
+							print("Success!")
+						except:
+							#Displays corrupt image error and deletes corresponding image
+							print("Image %s corrupt. Removing..." % image_filename)
+							os.remove(image_filename)
 				except:
 					#Throws an error if any issues arise from retrieving submission
 					print("Unable to collect post... continuing")
@@ -161,7 +160,12 @@ def main():
 			totalPosts = len(posts)
 			totalHarvested = len(txtfiles)
 			percentYielded = (totalHarvested/totalPosts)*100
-			avgCommentsPerPost = totalCommentsInSubreddit/len(txtfiles)
+
+			if len(txtfiles) > 0:
+				avgCommentsPerPost = totalCommentsInSubreddit/len(txtfiles)
+			else:
+				avgCommentsPerPost = 0
+
 			SUB_ELAPSED_TIME = time.time() - SUB_START_TIME
 			m, s = divmod(SUB_ELAPSED_TIME, 60)
 			h, m = divmod(m, 60)		
