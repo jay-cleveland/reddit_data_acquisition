@@ -27,67 +27,63 @@ def main():
 
 	
 	#Goes through each subreddit in the subreddit.txt list
-	for sub in subs:
+	for sub in subs:		
 
-		sub_path = "/home/kaislyn/RedditData/subreddits/%s/" % sub				#Change directory in this line
+		#Lists to store ids and txtfile names
+		posts = []
+		txtfiles = []
 
-		#Checks to see if subreddit path already exists, if it does, subreddit is skipped
-		if not os.path.exists(sub_path):
+		#Gets list of post ids from subreddit using Pushshift API credit to /u/Stuck_in_the_Matrix
+		posts_URL = "https://api.pushshift.io/reddit/search/submission/?size=500&subreddit=%s&num_comments=>100" % sub
+		postsAPI_Data = requests.get(posts_URL)
+		postsJSON = postsAPI_Data.json()
+		posts_Obj_List = postsJSON['data']
 			
-			#Create paths if they don't exist
+		#Creates a list containing all post IDs in the subreddit
+		##Iterates through first 500 objects returned from API call
+		for post in posts_Obj_List:
+			posts.append(post['id'])
+
+		#Sets the API call to pick up at the post made prior to the created_utc of the last post from previous call
+		##iterates to end of subreddit, filters by total number of comments >= 100
+		if len(posts) == 500:
+			while(True):
+				date_created = posts_Obj_List[-1]['created_utc']
+				posts_URL = "https://api.pushshift.io/reddit/search/submission/?size=500&subreddit=%s&num_comments=>100&before=%s" % (sub, date_created)
+				postsAPI_Data = requests.get(posts_URL)
+				try:
+					postsJSON = postsAPI_Data.json()
+				except:
+					break
+				posts_Obj_List = postsJSON['data']
+				if len(posts_Obj_List) == 500:
+					for post in posts_Obj_List:
+						posts.append(post['id'])
+				else:
+					for post in posts_Obj_List:
+						posts.append(post['id'])
+					break
+							
+		print(len(posts))
+		
+		#Prevents div/0 error when there are no viable posts to harvest from the sub, also skips sub if 0 viable posts
+		if len(posts) != 0:
+			sub_path = "/home/kaislyn/RedditData/subreddits/%s/" % sub			#Change directory in this line
 			raw_text_path = "/home/kaislyn/RedditData/subreddits/%s/raw_text/" % sub 	#Change directory in this line
 			image_path = "/home/kaislyn/RedditData/subreddits/%s/images/" % sub		#Change directory in this line
-						
-			if not os.path.exists(raw_text_path):
+
+			#Checks to see if subreddit path already exists, if it does, subreddit is skipped
+			if not os.path.exists(sub_path):
+			
+				#Create paths if they don't exist
 				os.makedirs(raw_text_path)
-			if not os.path.exists(image_path):
 				os.makedirs(image_path)
 
-			#Subreddit Data Information
-			totalCommentsInSubreddit = 0
-			avgCommentsPerPost = 0
-			sub_Data_File = open((sub_path + ("%s_data.txt" % sub)), "w+")
-			SUB_START_TIME = time.time()
-
-			#Lists to store ids and txtfile names
-			posts = []
-			txtfiles = []
-
-			#Gets list of post ids from subreddit using Pushshift API credit to /u/Stuck_in_the_Matrix
-			posts_URL = "https://api.pushshift.io/reddit/search/submission/?size=500&subreddit=%s&num_comments=>100" % sub
-			postsAPI_Data = requests.get(posts_URL)
-			postsJSON = postsAPI_Data.json()
-			posts_Obj_List = postsJSON['data']
-			
-			#Creates a list containing all post IDs in the subreddit
-			##Iterates through first 500 objects returned from API call
-			for post in posts_Obj_List:
-				posts.append(post['id'])
-
-			#Sets the API call to pick up at the post made prior to the created_utc of the last post from previous call
-			##iterates to end of subreddit, filters by total number of comments >= 100
-			if len(posts) == 500:
-				while(True):
-					date_created = posts_Obj_List[-1]['created_utc']
-					posts_URL = "https://api.pushshift.io/reddit/search/submission/?size=500&subreddit=%s&num_comments=>100&before=%s" % (sub, date_created)
-					postsAPI_Data = requests.get(posts_URL)
-					try:
-						postsJSON = postsAPI_Data.json()
-					except:
-						break
-					posts_Obj_List = postsJSON['data']
-					if len(posts_Obj_List) == 500:
-						for post in posts_Obj_List:
-							posts.append(post['id'])
-					else:
-						for post in posts_Obj_List:
-							posts.append(post['id'])
-						break
-							
-			print(len(posts))
-			
-			if len(posts) != 0:
-				
+				#Subreddit Data Information
+				totalCommentsInSubreddit = 0
+				avgCommentsPerPost = 0
+				sub_Data_File = open((sub_path + ("%s_data.txt" % sub)), "w+")
+				SUB_START_TIME = time.time()
 
 				for post in posts:
 
@@ -180,8 +176,8 @@ def main():
 				sub_Data_File.close()
 				
 
-			else:
-				print("%s contained no viable posts, probably too few comments." % sub)
+		else:
+			print("%s contained no viable posts, probably too few comments." % sub)
 		#End subreddit block
 
 
@@ -193,4 +189,4 @@ def main():
 	print("Total Runtime: %dh:%02dm:%02ds" % (h, m, s))
 
 			
-main() 	
+main()
