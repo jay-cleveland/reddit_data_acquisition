@@ -71,7 +71,10 @@ def main():
 					date_created = posts_Obj_List[-1]['created_utc']
 					posts_URL = "https://api.pushshift.io/reddit/search/submission/?size=500&subreddit=%s&num_comments=>100&before=%s" % (sub, date_created)
 					postsAPI_Data = requests.get(posts_URL)
-					postsJSON = postsAPI_Data.json()
+					try:
+						postsJSON = postsAPI_Data.json()
+					except:
+						break
 					posts_Obj_List = postsJSON['data']
 					if len(posts_Obj_List) == 500:
 						for post in posts_Obj_List:
@@ -83,100 +86,102 @@ def main():
 							
 			print(len(posts))
 			
-			if len(posts) == 0:
-				print("%s contained no viable posts, probably too few comments." % sub)
-				break
+			if len(posts) != 0:
+				
 
-			for post in posts:
+				for post in posts:
 
-				try:
-					#Creates the submission object using the post id		
-					submission = reddit.submission(id=post)			
+					try:
+						#Creates the submission object using the post id		
+						submission = reddit.submission(id=post)			
 
-					#Only works on posts that have an image url associated with them
-					if (".jpg" in submission.url) or (".png" in submission.url) or (".bmp" in submission.url):
-					
-						#Create text filepath
-						text_filepath = os.path.join(raw_text_path, (post + '.txt'))
-					
-						print("Aquiring post id %s from %s." % (post, sub))	
-					
-						#Grabs image from post
+						#Only works on posts that have an image url associated with them
+						if (".jpg" in submission.url) or (".png" in submission.url) or (".bmp" in submission.url):
 						
-						#**10/17/17** Fixed bug for downloading corrupt images
+							#Create text filepath
+							text_filepath = os.path.join(raw_text_path, (post + '.txt'))
 						
-						if (".jpg" in submission.url):
-							image_filename = os.path.join(image_path, (post + ".jpg"))
-						if (".png" in submission.url):
-							image_filename = os.path.join(image_path, (post + ".png"))
-						if (".bmp" in submission.url):
-							image_filename = os.path.join(image_path, (post + ".bmp"))
+							print("Aquiring post id %s from %s." % (post, sub))	
 						
-						urllib.urlretrieve(submission.url, image_filename)
-					
-						try:
-
-							#Testing image for corruption
-							##This is not fully reliable yet, still getting some corrupt images
-							im = Image.open(image_filename)
+							#Grabs image from post
 							
-							#If this throws an error then a text file will not be created and
-							##The image will be removed
-							im.verify()							 
+							#**10/17/17** Fixed bug for downloading corrupt images
 							
-							#Creates a list of valid text filenames
-							txtfiles.append(post + '.txt')
-					
-							#Create textfile to write comments to
-							comments_File = open(text_filepath, "w+")
+							if (".jpg" in submission.url):
+								image_filename = os.path.join(image_path, (post + ".jpg"))
+							if (".png" in submission.url):
+								image_filename = os.path.join(image_path, (post + ".png"))
+							if (".bmp" in submission.url):
+								image_filename = os.path.join(image_path, (post + ".bmp"))
 							
-							#Reverted back to using Reddit API for comment calls
-							submission.comments.replace_more(limit=0)
-							for comment in submission.comments.list():
-								comments_File.write(comment.body.encode('utf-8'))
-								totalCommentsInSubreddit += 1
+							urllib.urlretrieve(submission.url, image_filename)
+						
+							try:
 
-							comments_File.close()	
-							
-							print("Success!")
-						except:
-							#Displays corrupt image error and deletes corresponding image
-							print("Image %s corrupt. Removing..." % image_filename)
-							os.remove(image_filename)
-				except:
-					#Throws an error if any issues arise from retrieving submission
-					print("Unable to collect post... continuing")
+								#Testing image for corruption
+								##This is not fully reliable yet, still getting some corrupt images
+								im = Image.open(image_filename)
+								
+								#If this throws an error then a text file will not be created and
+								##The image will be removed
+								im.verify()							 
+								
+								#Creates a list of valid text filenames
+								txtfiles.append(post + '.txt')
+						
+								#Create textfile to write comments to
+								comments_File = open(text_filepath, "w+")
+								
+								#Reverted back to using Reddit API for comment calls
+								submission.comments.replace_more(limit=0)
+								for comment in submission.comments.list():
+									comments_File.write(comment.body.encode('utf-8'))
+									totalCommentsInSubreddit += 1
 
-			
-			#Creates a list of txtfiles for each sub
-			txtfiles_filename = "%s_textfiles.txt" % sub
-			txtfiles_filepath = os.path.join(raw_text_path, txtfiles_filename)			
-			textfile_List_File = open(txtfiles_filepath, "w+")
-			for txt in txtfiles:
-				textfile_List_File.write(txt + "\n")
-			textfile_List_File.close()
+								comments_File.close()	
+								
+								print("Success!")
+							except:
+								#Displays corrupt image error and deletes corresponding image
+								print("Image %s corrupt. Removing..." % image_filename)
+								os.remove(image_filename)
+					except:
+						#Throws an error if any issues arise from retrieving submission
+						print("Unable to collect post... continuing")
 
-			#Creates a file containing subreddit data sub_Data_File
-			totalPosts = len(posts)
-			totalHarvested = len(txtfiles)
-			percentYielded = (totalHarvested/totalPosts)*100
+				
+				#Creates a list of txtfiles for each sub
+				txtfiles_filename = "%s_textfiles.txt" % sub
+				txtfiles_filepath = os.path.join(raw_text_path, txtfiles_filename)			
+				textfile_List_File = open(txtfiles_filepath, "w+")
+				for txt in txtfiles:
+					textfile_List_File.write(txt + "\n")
+				textfile_List_File.close()
 
-			if len(txtfiles) > 0:
-				avgCommentsPerPost = totalCommentsInSubreddit/len(txtfiles)
+				#Creates a file containing subreddit data sub_Data_File
+				totalPosts = len(posts)
+				totalHarvested = len(txtfiles)
+				percentYielded = (totalHarvested/totalPosts)*100
+
+				if len(txtfiles) > 0:
+					avgCommentsPerPost = totalCommentsInSubreddit/len(txtfiles)
+				else:
+					avgCommentsPerPost = 0
+
+				SUB_ELAPSED_TIME = time.time() - SUB_START_TIME
+				m, s = divmod(SUB_ELAPSED_TIME, 60)
+				h, m = divmod(m, 60)		
+		
+				sub_Data_File.write("Sub Runtime: %dh:%02dm:%02ds\n" % (h, m, s))
+				sub_Data_File.write("Total Comments Collected: %s\n" % totalCommentsInSubreddit)
+				sub_Data_File.write("Average Comments Per Post: %.2f\n" % avgCommentsPerPost)
+				sub_Data_File.write("Total Number of Posts Harvested: %s\n" % len(txtfiles))
+				sub_Data_File.write("Percent of Viable Posts: %.2f%%" % percentYielded)
+				sub_Data_File.close()
+				
+
 			else:
-				avgCommentsPerPost = 0
-
-			SUB_ELAPSED_TIME = time.time() - SUB_START_TIME
-			m, s = divmod(SUB_ELAPSED_TIME, 60)
-			h, m = divmod(m, 60)		
-	
-			sub_Data_File.write("Sub Runtime: %dh:%02dm:%02ds\n" % (h, m, s))
-			sub_Data_File.write("Total Comments Collected: %s\n" % totalCommentsInSubreddit)
-			sub_Data_File.write("Average Comments Per Post: %.2f\n" % avgCommentsPerPost)
-			sub_Data_File.write("Total Number of Posts Harvested: %s\n" % len(txtfiles))
-			sub_Data_File.write("Percent of Viable Posts: %.2f%%" % percentYielded)
-			sub_Data_File.close()
-			
+				print("%s contained no viable posts, probably too few comments." % sub)
 		#End subreddit block
 
 
