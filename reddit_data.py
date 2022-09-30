@@ -22,8 +22,8 @@ def main():
 			subs.append(subreddit.rstrip())
 
 	#Create an instance of the PRAW Reddit object
-	reddit = praw.Reddit(user_agent="Data Acquisition (by /u/kaislyn89)",
-			client_id="1ZJR-h5YqFJg-Q", client_secret="JjoK7f5_JF5th7c1BvpVa3DCFk0")
+	reddit = praw.Reddit(user_agent="Data Acquisition (by /u/USER)",
+			client_id="*", client_secret="*")
 
 	
 	#Goes through each subreddit in the subreddit.txt list
